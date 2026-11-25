@@ -33,6 +33,8 @@ export interface ExpiringRow {
   name: string;
   tag: string;
   type: 'EOL' | 'License expiry';
+  detail: string;
+  company: string;
   date: string;
   days: number;
   status: 'expired' | 'expiring_soon' | 'warning';
@@ -45,11 +47,11 @@ export function expiringRows(db: Db, window = 30): ExpiringRow[] {
   db.items.forEach((i) => i.units.forEach((u) => {
     if (i.kind === 'asset' && u.eolDate) {
       const days = daysFromNow(u.eolDate);
-      if (days <= window) rows.push({ key: u.id, itemId: i.id, kind: i.kind, name: i.name, tag: u.tag, type: 'EOL', date: u.eolDate, days, status: classify(days) });
+      if (days <= window) rows.push({ key: u.id, itemId: i.id, kind: i.kind, name: i.name, tag: u.tag, type: 'EOL', detail: `Tag: ${u.tag}${u.serial ? ` · Serial: ${u.serial}` : ''}`, company: db.companies.find((c) => c.id === i.companyId)?.name ?? '', date: u.eolDate, days, status: classify(days) });
     }
     if (i.kind === 'license' && u.expirationDate) {
       const days = daysFromNow(u.expirationDate);
-      if (days <= window) rows.push({ key: u.id, itemId: i.id, kind: i.kind, name: i.name, tag: u.tag, type: 'License expiry', date: u.expirationDate, days, status: classify(days) });
+      if (days <= window) rows.push({ key: u.id, itemId: i.id, kind: i.kind, name: i.name, tag: u.tag, type: 'License expiry', detail: `Key: ${u.licenseKey ?? u.tag}`, company: db.companies.find((c) => c.id === i.companyId)?.name ?? '', date: u.expirationDate, days, status: classify(days) });
     }
   }));
   return rows.sort((a, b) => a.days - b.days);

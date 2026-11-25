@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeftIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react';
-import { useSidebarControl } from './AppShell';
+import { ArrowLeftIcon } from 'lucide-react';
 
 export function PageHeader({
   title,
@@ -23,30 +22,19 @@ export function PageHeader({
   /** Small icon shown before the title, as on the current Asset Management pages. */
   icon?: React.ComponentType<{className?: string;}>;
 }) {
-  const sidebar = useSidebarControl();
-  const ToggleIcon = sidebar?.open ? PanelLeftCloseIcon : PanelLeftOpenIcon;
   return (
     <header className="px-4 pb-2 pt-4 sm:px-8 sm:pt-6">
-      <div className="mb-3 flex items-center gap-3">
-        {sidebar &&
-        <button
-          type="button"
-          onClick={sidebar.toggle}
-          aria-label={sidebar.open ? 'Hide sidebar' : 'Show sidebar'}
-          className="rounded-md p-1.5 text-ink transition-colors duration-150 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-200">
-            <ToggleIcon className="h-4 w-4" />
-          </button>
-        }
-        {backTo &&
-        <Link
+      {backTo &&
+      <div className="mb-3">
+          <Link
           to={backTo}
           aria-label={backLabel ? `Back to ${backLabel}` : 'Back'}
           title={backLabel ? `Back to ${backLabel}` : 'Back'}
           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-white text-ink shadow-card transition-colors hover:bg-slate-50">
             <ArrowLeftIcon className="h-4 w-4" />
           </Link>
-        }
-      </div>
+        </div>
+      }
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3.5">
           {leading}
