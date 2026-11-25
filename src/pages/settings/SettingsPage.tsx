@@ -13,6 +13,8 @@ import { Dialog } from '../../components/ui/Dialog';
 import { FormDrawer, Labeled } from '../../components/ui/FormDrawer';
 import type { FieldDef, Row, SettingConfig } from './settingsConfig';
 
+const cap = (t: string) => t.split(' ').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+
 function SettingForm({ config, record, onClose }: {config: SettingConfig;record: Row;onClose: () => void;}) {
   const { db, run, busy } = useStore();
   const isNew = !record.id;
@@ -46,11 +48,18 @@ function SettingForm({ config, record, onClose }: {config: SettingConfig;record:
 
   const control = (f: FieldDef) => {
     const v = form[f.key];
-    if (f.type === 'textarea') return <Textarea value={v ?? ''} onChange={(e) => set(f.key, e.target.value)} />;
+    if (f.type === 'textarea') {
+      return (
+        <>
+          <Textarea maxLength={500} placeholder="Enter additional notes (optional)" value={v ?? ''} onChange={(e) => set(f.key, e.target.value)} />
+          <p className="mt-1 text-[11px] text-muted">{(v ?? '').length}/500 characters</p>
+        </>);
+
+    }
     if (f.type === 'select') {
       return (
         <Select value={v ?? ''} onChange={(e) => set(f.key, e.target.value)}>
-          <option value="">Select</option>
+          <option value="">Select a {f.label.toLowerCase()}</option>
           {f.options?.(db).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </Select>);
 
@@ -76,11 +85,11 @@ function SettingForm({ config, record, onClose }: {config: SettingConfig;record:
         </div>);
 
     }
-    return <Input type={f.type === 'number' ? 'number' : f.type === 'email' ? 'email' : 'text'} value={v ?? ''} placeholder={f.placeholder} onChange={(e) => set(f.key, e.target.value)} />;
+    return <Input type={f.type === 'number' ? 'number' : f.type === 'email' ? 'email' : 'text'} value={v ?? ''} placeholder={f.placeholder ?? `Enter ${f.label.toLowerCase()}`} onChange={(e) => set(f.key, e.target.value)} />;
   };
 
   return (
-    <FormDrawer open onClose={onClose} onSubmit={submit} busy={busy} title={`${isNew ? 'Add' : 'Edit'} ${config.singular}`} submitLabel={isNew ? 'Create' : 'Save changes'}>
+    <FormDrawer open onClose={onClose} onSubmit={submit} busy={busy} title={isNew ? `Create New ${cap(config.singular)}` : `Edit ${cap(config.singular)}`} submitLabel={isNew ? `Create ${cap(config.singular)}` : 'Save Changes'}>
       <div className="grid gap-4 sm:grid-cols-2">
         {visible.map((f) =>
         <Labeled key={f.key} label={f.label} required={f.required} error={errors[f.key]} hint={f.hint} wide={f.wide || f.type === 'textarea'}>

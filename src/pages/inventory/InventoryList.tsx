@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangleIcon, CpuIcon, KeyRoundIcon, LaptopIcon, MouseIcon, PlusIcon } from 'lucide-react';
 import type { Item, Kind } from '../../types';
 import { kindLabel, kindPlural } from '../../types';
@@ -12,6 +12,7 @@ import { TableToolbar } from '../../components/ui/TableToolbar';
 import { Menu } from '../../components/ui/Menu';
 import { Badge, StatusBadge } from '../../components/ui/Badge';
 import { Dialog } from '../../components/ui/Dialog';
+import { ItemDetailModal } from './ItemDetail';
 import { ItemFormDrawer } from '../../components/inventory/ItemFormDrawer';
 import { AssignDrawer } from '../../components/inventory/ActionDrawers';
 import { downloadExcel, formatDate, formatMoney } from '../../utils/format';
@@ -27,6 +28,7 @@ const descriptions: Record<Kind, string> = {
 export function InventoryList({ kind }: {kind: Kind;}) {
   const { db, run, busy, notify, notifyError } = useStore();
   const navigate = useNavigate();
+  const { id: openId } = useParams();
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Item>();
@@ -222,6 +224,7 @@ export function InventoryList({ kind }: {kind: Kind;}) {
           rowKey={(i) => i.id}
           selectable
           columnsMenu
+          onRowClick={(i) => navigate(`${base}/${i.id}`)}
           expandable={{ render: unitsPanel }}
           initialSort={{ key: 'updated', dir: 'desc' }}
           toolbar={({ rows: shown, selected }) =>
@@ -240,6 +243,7 @@ export function InventoryList({ kind }: {kind: Kind;}) {
       </PageBody>
 
       <ItemFormDrawer kind={kind} open={creating} onClose={() => setCreating(false)} onSaved={(id) => navigate(`${base}/${id}`)} />
+      {openId && <ItemDetailModal kind={kind} id={openId} onClose={() => navigate(base)} />}
       {editing && <ItemFormDrawer kind={kind} item={editing} open onClose={() => setEditing(undefined)} />}
       {assigning && <AssignDrawer open item={assigning} onClose={() => setAssigning(undefined)} />}
       <Dialog

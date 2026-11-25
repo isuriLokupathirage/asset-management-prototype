@@ -1,9 +1,11 @@
 import React from 'react';
-import { XIcon } from 'lucide-react';
-import { Drawer } from './Drawer';
 import { Button } from './Button';
+import { ModalHeader, ModalShell } from './Modal';
 
-/** Drawer with a fixed header and footer, used by every create / edit / action form. */
+/**
+ * Modal with a fixed header and footer, used by every create / edit / action form.
+ * (Named FormDrawer from an earlier iteration; the current Asset Management screens use modals.)
+ */
 export function FormDrawer({
   open,
   title,
@@ -12,7 +14,7 @@ export function FormDrawer({
   onSubmit,
   submitLabel = 'Save',
   busy,
-  size,
+  size = 'md',
   children,
   submitVariant = 'primary',
   hideSubmit
@@ -24,38 +26,31 @@ export function FormDrawer({
   onSubmit?: () => void;
   submitLabel?: string;
   busy?: boolean;
+  /** `lg` for forms with many fields, such as a new asset. */
   size?: 'md' | 'lg';
   children: React.ReactNode;
   submitVariant?: 'primary' | 'danger';
   hideSubmit?: boolean;
 }) {
   return (
-    <Drawer open={open} label={title} onClose={onClose} size={size}>
+    <ModalShell open={open} label={title} onClose={onClose} size={size === 'lg' ? 'lg' : 'md'}>
       <form
-        className="flex h-full min-h-0 flex-col"
+        className="flex min-h-0 flex-1 flex-col"
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
           onSubmit?.();
         }}>
-        <div className="flex items-start justify-between gap-3 border-b border-line px-6 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-ink">{title}</h2>
-            {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-md p-1.5 text-subtle hover:bg-slate-100 hover:text-ink">
-            <XIcon className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="scroll-thin flex-1 overflow-y-auto px-6 py-5">{children}</div>
-        <div className="flex justify-end gap-2 border-t border-line px-6 py-3.5">
+        <ModalHeader title={title} subtitle={subtitle} onClose={onClose} />
+        <div className="scroll-thin flex-1 overflow-y-auto px-6 py-4">{children}</div>
+        <div className="flex justify-end gap-2 px-6 pb-5 pt-3">
           <Button type="button" onClick={onClose} disabled={busy}>{hideSubmit ? 'Close' : 'Cancel'}</Button>
           {!hideSubmit &&
           <Button type="submit" variant={submitVariant} disabled={busy}>{busy ? 'Working...' : submitLabel}</Button>
           }
         </div>
       </form>
-    </Drawer>);
+    </ModalShell>);
 
 }
 

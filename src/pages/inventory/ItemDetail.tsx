@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FileTextIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import type { Assignment, HistoryEvent, Item, Kind, Unit } from '../../types';
-import { kindLabel, kindPlural, unitLabel } from '../../types';
+import type { Assignment, HistoryEvent, Kind, Unit } from '../../types';
+import { kindLabel, unitLabel } from '../../types';
 import { useStore } from '../../store/AppStore';
 import { assigneeLabel, deleteItem, employeeName, findItem, itemCounts, unitStatus } from '../../services/domain';
-import { PageBody, PageHeader } from '../../components/layout/PageHeader';
+import { ModalHeader, ModalShell } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Card, Detail, Tabs } from '../../components/ui/Tabs';
 import { DataTable, type Column } from '../../components/ui/DataTable';
@@ -19,10 +18,9 @@ import { MaintenanceTable } from '../../components/inventory/MaintenanceTable';
 import { formatDate, formatDateTime, formatMoney } from '../../utils/format';
 import { HistoryIcon } from 'lucide-react';
 
-export function ItemDetail({ kind }: {kind: Kind;}) {
-  const { id } = useParams();
+/** Record details shown in a large modal over the list, as on the current Asset Management screens. */
+export function ItemDetailModal({ kind, id, onClose }: {kind: Kind;id?: string;onClose: () => void;}) {
   const { db, run, busy } = useStore();
-  const navigate = useNavigate();
   const item = findItem(db, id);
   const [tab, setTab] = useState('details');
   const [editing, setEditing] = useState(false);
@@ -34,15 +32,7 @@ export function ItemDetail({ kind }: {kind: Kind;}) {
   const [deleteUnit, setDeleteUnit] = useState<Unit>();
   const [handover, setHandover] = useState<string>();
 
-  const base = `/${kindPlural[kind].toLowerCase()}`;
-  if (!item || item.kind !== kind) {
-    return (
-      <>
-        <PageHeader title={`${kindLabel[kind]} not found`} backTo={base} backLabel={kindPlural[kind]} />
-        <PageBody><EmptyState icon={FileTextIcon} title="This record does not exist" description="It may have been deleted." action={<Link to={base}><Button variant="primary">Back to {kindPlural[kind].toLowerCase()}</Button></Link>} /></PageBody>
-      </>);
-
-  }
+  if (!item || item.kind !== kind) return null;
 
   const counts = itemCounts(db, item);
   const itemAssignments = db.assignments.filter((a) => a.itemId === item.id);
@@ -169,19 +159,19 @@ export function ItemDetail({ kind }: {kind: Kind;}) {
 
   return (
     <>
-      <PageHeader
-        title={item.name}
-        backTo={base}
-        backLabel={kindPlural[kind]}
-        subtitle={[model?.name, manufacturer, db.companies.find((c) => c.id === item.companyId)?.name].filter(Boolean).join(' · ')}
-        actions={
-        <>
-            <Button onClick={() => setEditing(true)}><PencilIcon className="h-4 w-4" />Edit</Button>
-            <Button variant="primary" disabled={counts.available === 0} title={counts.available === 0 ? 'Nothing available to assign' : undefined} onClick={() => setAssign({})}>Assign</Button>
-            <Button variant="ghost" aria-label="Delete" onClick={() => setDeleting(true)}><Trash2Icon className="h-4 w-4" /></Button>
-          </>
-        } />
-      <PageBody>
+      <ModalShell open label={item.name} onClose={onClose} size="xl">
+        <ModalHeader
+          title={item.name}
+          subtitle={[model?.name, manufacturer, db.companies.find((c) => c.id === item.companyId)?.name].filter(Boolean).join(' · ')}
+          onClose={onClose}
+          actions={
+          <>
+              <Button onClick={() => setEditing(true)}><PencilIcon className="h-4 w-4" />Edit</Button>
+              <Button variant="primary" disabled={counts.available === 0} title={counts.available === 0 ? 'Nothing available to assign' : undefined} onClick={() => setAssign({})}>Assign</Button>
+              <Button variant="ghost" aria-label="Delete" onClick={() => setDeleting(true)}><Trash2Icon className="h-4 w-4" /></Button>
+            </>
+          } />
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-3">
         <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
           { label: kind === 'license' ? 'Total seats' : 'Total', value: counts.total },
@@ -269,7 +259,8 @@ export function ItemDetail({ kind }: {kind: Kind;}) {
           {tab === 'maintenance' && <MaintenanceTable records={maint} />}
           {tab === 'history' && <Card>{historyList(events)}</Card>}
         </div>
-      </PageBody>
+        </div>
+      </ModalShell>
 
       {editing && <ItemFormDrawer kind={kind} item={item} open onClose={() => setEditing(false)} />}
       {assign && <AssignDrawer open item={item} unit={assign.unit} onClose={() => setAssign(null)} />}
@@ -289,10 +280,10 @@ export function ItemDetail({ kind }: {kind: Kind;}) {
         onConfirm={async () => {
           const r = await run((d) => deleteItem(d, item.id), `${item.name} deleted`);
           setDeleting(false);
-          if (r.ok) navigate(base);
+          if (r.ok) onClose();
         }} />
     </>);
 
 }
 
-export type { Item };
+

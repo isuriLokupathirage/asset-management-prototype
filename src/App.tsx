@@ -3,7 +3,6 @@ import { AppStoreProvider } from './store/AppStore';
 import { AppShell } from './components/layout/AppShell';
 import { Dashboard } from './pages/Dashboard';
 import { InventoryList } from './pages/inventory/InventoryList';
-import { ItemDetail } from './pages/inventory/ItemDetail';
 import { UserAssignmentDetail, UserAssignments } from './pages/Assignments';
 import { MaintenancePage } from './pages/Maintenance';
 import { SettingsPage } from './pages/settings/SettingsPage';
@@ -20,14 +19,10 @@ export function App() {
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="assets" element={<InventoryList kind="asset" />} />
-            <Route path="assets/:id" element={<ItemDetail kind="asset" />} />
-            <Route path="licenses" element={<InventoryList kind="license" />} />
-            <Route path="licenses/:id" element={<ItemDetail kind="license" />} />
-            <Route path="components" element={<InventoryList kind="component" />} />
-            <Route path="components/:id" element={<ItemDetail kind="component" />} />
-            <Route path="accessories" element={<InventoryList kind="accessory" />} />
-            <Route path="accessories/:id" element={<ItemDetail kind="accessory" />} />
+            <Route path="assets/:id?" element={<InventoryList kind="asset" />} />
+            <Route path="licenses/:id?" element={<InventoryList kind="license" />} />
+            <Route path="components/:id?" element={<InventoryList kind="component" />} />
+            <Route path="accessories/:id?" element={<InventoryList kind="accessory" />} />
             <Route path="assignments" element={<UserAssignments />} />
             <Route path="assignments/:userId" element={<UserAssignmentDetail />} />
             <Route path="my-assignments" element={<UserAssignmentDetail self />} />
