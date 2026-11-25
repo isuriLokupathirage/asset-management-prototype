@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PlusIcon } from 'lucide-react';
+import { LayoutGridIcon, PlusIcon } from 'lucide-react';
 import { useStore } from '../../store/AppStore';
-import { deleteSetting, newId, saveSetting } from '../../services/domain';
+import { bulkRemove, deleteSetting, newId, saveSetting } from '../../services/domain';
 import { PageBody, PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
-import { SearchInput } from '../../components/ui/SearchInput';
+import { TableToolbar } from '../../components/ui/TableToolbar';
+import { downloadExcel } from '../../utils/format';
 import { Select, Input, Textarea, Checkbox } from '../../components/ui/Field';
 import { DataTable, type Column } from '../../components/ui/DataTable';
 import { Menu } from '../../components/ui/Menu';
@@ -92,11 +93,11 @@ function SettingForm({ config, record, onClose }: {config: SettingConfig;record:
 }
 
 export function SettingsPage({ config }: {config: SettingConfig;}) {
-  const { db, run, busy } = useStore();
+  const { db, run, busy, notify, notifyError } = useStore();
   const [q, setQ] = useState('');
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<Row>();
-  const [deleting, setDeleting] = useState<Row>();
+  const [deleting, setDeleting] = useState<Row[]>([]);
 
   useEffect(() => {setQ('');setFilters({});}, [config.collection]);
 
@@ -110,54 +111,73 @@ export function SettingsPage({ config }: {config: SettingConfig;}) {
   }), [all, q, filters, config, db]);
 
   const columns: Column<Row>[] = [
-  ...config.columns.map((c) => ({ key: c.key, header: c.header, sort: c.sort ? (r: Row) => c.sort!(r, db) : undefined, render: (r: Row) => c.render(r, db) })),
+  ...config.columns.map((c, idx) => ({ key: c.key, header: c.header, filter: idx === 0 ? 'text' as const : undefined, filterValue: idx === 0 ? (r: Row) => String(r.name ?? r.fieldName ?? '') : undefined, sort: c.sort ? (r: Row) => c.sort!(r, db) : undefined, render: (r: Row) => c.render(r, db) })),
   {
     key: 'actions',
     header: <span className="sr-only">Actions</span>,
     align: 'right',
-    render: (r) => <Menu label="Row actions" items={[{ label: 'Edit', onSelect: () => setEditing(r) }, { label: 'Delete', danger: true, onSelect: () => setDeleting(r) }]} />
+    render: (r) => <Menu label="Row actions" items={[{ label: 'Edit', onSelect: () => setEditing(r) }, { label: 'Delete', danger: true, onSelect: () => setDeleting([r]) }]} />
   }];
 
 
   return (
     <>
       <PageHeader
-        title={config.title}
+        title={`${config.title.split(' ').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')} Management`}
+        icon={LayoutGridIcon}
         subtitle={config.description}
         actions={<Button variant="primary" onClick={() => setEditing(config.blank(db))}><PlusIcon className="h-4 w-4" />Add {config.singular}</Button>} />
       <PageBody>
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <SearchInput className="w-full sm:w-72" value={q} onChange={setQ} placeholder={`Search ${config.title.toLowerCase()}`} />
-          {(config.filters ?? []).map((f) =>
-          <Select key={f.key} className="w-full sm:w-52" aria-label={f.label} value={filters[f.key] ?? ''} onChange={(e) => setFilters((x) => ({ ...x, [f.key]: e.target.value }))}>
-              <option value="">{f.label}</option>
-              {f.options(db).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </Select>
-          )}
-          <span className="ml-auto text-[12px] text-muted">{rows.length} of {all.length}</span>
-        </div>
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(r) => r.id}
+          selectable
+          columnsMenu
           onRowClick={(r) => setEditing(r)}
+          toolbar={({ rows: shown, selected }) =>
+          <TableToolbar
+            search={q}
+            onSearch={setQ}
+            placeholder={`Search ${config.title.toLowerCase()}...`}
+            onExport={() => downloadExcel(`${config.route}.xls`, config.fields.map((f) => f.label), shown.map((r) => config.fields.map((f) => Array.isArray(r[f.key]) ? r[f.key].join(', ') : r[f.key])))}
+            exportDisabled={shown.length === 0}
+            selectedCount={selected.length}
+            onDeleteSelected={() => setDeleting(selected)}>
+              {(config.filters ?? []).map((f) =>
+            <Select key={f.key} className="h-9 w-44 text-[13px]" aria-label={f.label} value={filters[f.key] ?? ''} onChange={(e) => setFilters((x) => ({ ...x, [f.key]: e.target.value }))}>
+                  <option value="">{f.label}</option>
+                  {f.options(db).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+            )}
+            </TableToolbar>
+          }
           emptyTitle={all.length ? 'No matches' : `No ${config.title.toLowerCase()} yet`}
           emptyDescription={all.length ? 'Try a different search or filter.' : `Add your first ${config.singular}.`}
           emptyAction={all.length ? undefined : <Button variant="primary" onClick={() => setEditing(config.blank(db))}>Add {config.singular}</Button>} />
       </PageBody>
       {editing && <SettingForm config={config} record={editing} onClose={() => setEditing(undefined)} />}
       <Dialog
-        open={Boolean(deleting)}
+        open={deleting.length > 0}
         busy={busy}
-        title={`Delete ${deleting?.name ?? deleting?.fieldName}?`}
-        body={`This removes the ${config.singular}. It cannot be deleted while other records still use it.`}
+        title={deleting.length === 1 ? `Delete ${deleting[0].name ?? deleting[0].fieldName}?` : `Delete ${deleting.length} records?`}
+        body={`This removes the selected ${config.singular}${deleting.length === 1 ? '' : 's'}. Anything still used by other records cannot be deleted and is skipped.`}
         confirmLabel="Delete"
         confirmVariant="danger"
-        onCancel={() => setDeleting(undefined)}
+        onCancel={() => setDeleting([])}
         onConfirm={async () => {
-          const target = deleting;
-          await run((d) => deleteSetting(d, config.collection, target.id), `${config.singular[0].toUpperCase()}${config.singular.slice(1)} deleted`);
-          setDeleting(undefined);
+          const ids = deleting.map((r) => r.id);
+          const r = await run((d) => {
+            const out = bulkRemove(d, ids, (x, id) => deleteSetting(x, config.collection, id));
+            return { db: out.db, result: out };
+          });
+          const out = r.result;
+          if (out) {
+            if (out.done === 0) notifyError(out.firstError ?? 'Nothing was deleted');
+            else if (out.failed > 0) notify(`${out.done} deleted, ${out.failed} skipped: ${out.firstError}`);
+            else notify(out.done === 1 ? 'Deleted' : `${out.done} deleted`);
+          }
+          setDeleting([]);
         }} />
     </>);
 

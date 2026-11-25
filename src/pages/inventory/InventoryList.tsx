@@ -1,80 +1,79 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertTriangleIcon, DownloadIcon, PlusIcon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertTriangleIcon, CpuIcon, KeyRoundIcon, LaptopIcon, MouseIcon, PlusIcon } from 'lucide-react';
 import type { Item, Kind } from '../../types';
 import { kindLabel, kindPlural } from '../../types';
 import { useStore } from '../../store/AppStore';
-import { deleteItem, itemCounts } from '../../services/domain';
+import { assigneeLabel, bulkRemove, currentAssignmentOf, deleteItem, itemCounts, unitStatus } from '../../services/domain';
 import { PageBody, PageHeader } from '../../components/layout/PageHeader';
 import { Button } from '../../components/ui/Button';
-import { SearchInput } from '../../components/ui/SearchInput';
-import { Select } from '../../components/ui/Field';
 import { DataTable, type Column } from '../../components/ui/DataTable';
+import { TableToolbar } from '../../components/ui/TableToolbar';
 import { Menu } from '../../components/ui/Menu';
-import { Badge } from '../../components/ui/Badge';
+import { Badge, StatusBadge } from '../../components/ui/Badge';
 import { Dialog } from '../../components/ui/Dialog';
 import { ItemFormDrawer } from '../../components/inventory/ItemFormDrawer';
 import { AssignDrawer } from '../../components/inventory/ActionDrawers';
-import { downloadCsv, formatDate, formatMoney } from '../../utils/format';
+import { downloadExcel, formatDate, formatMoney } from '../../utils/format';
 
+const icons: Record<Kind, React.ComponentType<{className?: string;}>> = { asset: LaptopIcon, license: KeyRoundIcon, component: CpuIcon, accessory: MouseIcon };
 const descriptions: Record<Kind, string> = {
-  asset: 'Hardware that is tracked individually by tag and serial number, and assigned to people or other assets.',
-  license: 'Software licenses and their seats. Each seat is assigned to a user or an asset.',
-  component: 'Internal parts such as memory and storage that are fitted into assets.',
-  accessory: 'Peripherals such as mice, keyboards and docks that are issued to users.'
+  asset: 'Manage assets for your organization',
+  license: 'Manage software licenses and their seats',
+  component: 'Manage components such as memory and storage',
+  accessory: 'Manage accessories such as mice, keyboards and docks'
 };
 
 export function InventoryList({ kind }: {kind: Kind;}) {
-  const { db, run, busy } = useStore();
+  const { db, run, busy, notify, notifyError } = useStore();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
-  const [company, setCompany] = useState('');
-  const [category, setCategory] = useState('');
-  const [availability, setAvailability] = useState('');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Item>();
   const [assigning, setAssigning] = useState<Item>();
-  const [deleting, setDeleting] = useState<Item>();
+  const [deleting, setDeleting] = useState<Item[]>([]);
 
   const modelOf = (i: Item) => db.models.find((m) => m.id === i.modelId);
-  const categoryOf = (i: Item) => i.categoryId ?? modelOf(i)?.categoryId;
+  const categoryName = (i: Item) => db.categories.find((c) => c.id === (i.categoryId ?? modelOf(i)?.categoryId))?.name ?? '';
   const manufacturerOf = (i: Item) => db.manufacturers.find((m) => m.id === (i.manufacturerId ?? modelOf(i)?.manufacturerId))?.name ?? '';
+  const companyName = (i: Item) => db.companies.find((c) => c.id === i.companyId)?.name ?? '';
+  const departmentName = (i: Item) => db.departments.find((d) => d.id === i.departmentId)?.name ?? '';
+  const statusSummary = (i: Item) => {
+    const names = [...new Set(i.units.map((u) => unitStatus(db, i, u)))];
+    const unique = [...new Map(names.map((s) => [s.name, s])).values()];
+    return unique.length === 1 ? unique[0] : { name: 'Mixed', tone: 'slate' as const };
+  };
 
   const all = useMemo(() => db.items.filter((i) => i.kind === kind), [db.items, kind]);
   const rows = useMemo(() => {
     const n = q.trim().toLowerCase();
-    return all.filter((i) => {
-      if (company && i.companyId !== company) return false;
-      if (category && categoryOf(i) !== category) return false;
-      const c = itemCounts(db, i);
-      if (availability === 'available' && c.available === 0) return false;
-      if (availability === 'none' && c.available > 0) return false;
-      if (availability === 'low' && c.available >= i.minQty) return false;
-      if (!n) return true;
-      const hay = [i.name, manufacturerOf(i), modelOf(i)?.name, i.modelNumber, ...i.units.flatMap((u) => [u.tag, u.serial, u.licenseKey])].join(' ').toLowerCase();
-      return hay.includes(n);
-    });
+    if (!n) return all;
+    return all.filter((i) => [i.name, manufacturerOf(i), modelOf(i)?.name, i.modelNumber, i.notes, ...i.units.flatMap((u) => [u.tag, u.serial, u.licenseKey])].join(' ').toLowerCase().includes(n));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, q, company, category, availability, db]);
+  }, [all, q, db]);
 
   const lowStock = (i: Item) => itemCounts(db, i).available < i.minQty;
   const nextExpiry = (i: Item) => i.units.map((u) => u.expirationDate).filter(Boolean).sort()[0];
+  const base = `/${kindPlural[kind].toLowerCase()}`;
 
   const columns: Column<Item>[] = [
   {
     key: 'name',
-    header: kind === 'license' ? 'Software' : 'Name',
+    header: kind === 'license' ? 'Software' : `${kindLabel[kind]} Name`,
+    title: 'Name',
     sort: (i) => i.name.toLowerCase(),
+    filter: 'text',
+    filterLabel: 'name',
     render: (i) =>
-    <div className="min-w-[180px]">
-          <p className="font-medium text-ink">{i.name}</p>
+    <div className="min-w-[170px]">
+          <Link to={`${base}/${i.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-ink hover:text-brand-600">{i.name}</Link>
           <p className="text-[11px] text-muted">{[modelOf(i)?.name, manufacturerOf(i), i.modelNumber].filter(Boolean).join(' · ') || ' '}</p>
         </div>
 
   },
   {
     key: 'total',
-    header: kind === 'license' ? 'Seats' : 'Total',
+    header: kind === 'license' ? 'Seats' : kind === 'asset' ? 'Total Assets' : 'Total',
     sort: (i) => i.units.length,
     render: (i) => i.units.length
   },
@@ -82,42 +81,79 @@ export function InventoryList({ kind }: {kind: Kind;}) {
     key: 'available',
     header: 'Available',
     sort: (i) => itemCounts(db, i).available,
-    render: (i) =>
-    <span className="inline-flex items-center gap-1.5">
-          {itemCounts(db, i).available}
-          {lowStock(i) && <Badge className="bg-amber-50 text-amber-800 ring-amber-200"><AlertTriangleIcon className="h-3 w-3" />Low</Badge>}
-        </span>
+    render: (i) => {
+      const n = itemCounts(db, i).available;
+      const low = lowStock(i);
+      return (
+        <span className="inline-flex items-center gap-1.5">
+            <span className={`inline-flex min-w-[28px] justify-center rounded-md px-2 py-0.5 text-[12px] font-semibold ${low ? 'bg-red-500 text-white' : 'bg-emerald-100 text-emerald-800'}`}>{n}</span>
+            {low && <span title={`Below the minimum of ${i.minQty}`}><AlertTriangleIcon className="h-3.5 w-3.5 text-amber-600" /></span>}
+          </span>);
 
+    }
   },
   {
-    key: 'assigned',
-    header: 'Assigned',
-    sort: (i) => itemCounts(db, i).assigned,
-    render: (i) => itemCounts(db, i).assigned
+    key: 'status',
+    header: 'Status',
+    sort: (i) => statusSummary(i).name,
+    filter: 'select',
+    filterValue: (i) => statusSummary(i).name,
+    render: (i) => {
+      const s = statusSummary(i);
+      return <StatusBadge tone={s.tone}>{s.name}</StatusBadge>;
+    }
   },
   ...(kind === 'license' ? [{
     key: 'expiry',
-    header: 'Next expiry',
+    header: 'Next Expiry',
     sort: (i: Item) => nextExpiry(i) ?? '9999',
     render: (i: Item) => formatDate(nextExpiry(i)) || '-'
   }] : []),
   {
     key: 'category',
     header: 'Category',
-    sort: (i) => db.categories.find((c) => c.id === categoryOf(i))?.name ?? '',
-    render: (i) => db.categories.find((c) => c.id === categoryOf(i))?.name ?? '-'
+    sort: categoryName,
+    filter: 'select',
+    filterValue: categoryName,
+    render: (i) => categoryName(i) || '-'
   },
   {
     key: 'company',
-    header: kind === 'asset' ? 'Company / department' : 'Company',
-    sort: (i) => db.companies.find((c) => c.id === i.companyId)?.name ?? '',
-    render: (i) => <div className="max-w-[190px] leading-tight"><p className="truncate text-muted">{db.companies.find((c) => c.id === i.companyId)?.name}</p>{kind === 'asset' && <p className="truncate text-[11px] text-subtle">{db.departments.find((d) => d.id === i.departmentId)?.name}</p>}</div>
+    header: 'Company',
+    sort: companyName,
+    filter: 'select',
+    filterValue: companyName,
+    render: (i) => <span className="text-muted">{companyName(i)}</span>
+  },
+  ...(kind === 'asset' ? [{
+    key: 'department',
+    header: 'Department',
+    sort: departmentName,
+    filter: 'select' as const,
+    filterValue: departmentName,
+    render: (i: Item) => <span className="text-muted">{departmentName(i) || '-'}</span>
+  }] : []),
+  {
+    key: 'notes',
+    header: 'Notes',
+    filter: 'text',
+    filterLabel: 'notes',
+    filterValue: (i) => i.notes ?? '',
+    sort: (i) => i.notes ?? '',
+    render: (i) => <span className="line-clamp-2 max-w-[160px] text-muted">{i.notes || 'N/A'}</span>
   },
   {
     key: 'cost',
-    header: kind === 'asset' || kind === 'license' ? 'Total cost' : 'Unit cost',
+    header: kind === 'asset' || kind === 'license' ? 'Total Cost' : 'Unit Cost',
     sort: (i) => i.cost ?? 0,
+    defaultHidden: true,
     render: (i) => <span className="whitespace-nowrap text-muted">{formatMoney(i.cost) || '-'}</span>
+  },
+  {
+    key: 'updated',
+    header: 'Updated Date',
+    sort: (i) => i.updatedAt,
+    render: (i) => <span className="whitespace-nowrap text-muted">{formatDate(i.updatedAt)}</span>
   },
   {
     key: 'actions',
@@ -127,85 +163,106 @@ export function InventoryList({ kind }: {kind: Kind;}) {
     <Menu
       label={`Actions for ${i.name}`}
       items={[
-      { label: 'View details', onSelect: () => navigate(`/${kindPlural[kind].toLowerCase()}/${i.id}`) },
+      { label: 'View details', onSelect: () => navigate(`${base}/${i.id}`) },
       { label: 'Assign', onSelect: () => setAssigning(i), disabled: itemCounts(db, i).available === 0, hint: 'Nothing available to assign' },
       { label: 'Edit', onSelect: () => setEditing(i) },
-      { label: 'Delete', danger: true, onSelect: () => setDeleting(i) }]
+      { label: 'Delete', danger: true, onSelect: () => setDeleting([i]) }]
       } />
 
   }];
 
 
-  const exportCsv = () =>
-  downloadCsv(`${kindPlural[kind].toLowerCase()}.csv`,
+  const exportExcel = (list: Item[]) =>
+  downloadExcel(`${kindPlural[kind].toLowerCase()}.xls`,
   ['Name', 'Tag', 'Serial / key', 'Status', 'Assigned to', 'Company'],
-  rows.flatMap((i) => i.units.map((u) => {
-    const a = db.assignments.find((x) => x.id === u.assignmentId);
-    return [i.name, u.tag, u.serial ?? u.licenseKey, u.assignmentId ? 'Assigned' : u.statusLabelId ? db.statusLabels.find((s) => s.id === u.statusLabelId)?.name : u.state,
-    a ? a.toEmployeeId ? db.employees.find((e) => e.id === a.toEmployeeId)?.name : 'Asset' : '', db.companies.find((c) => c.id === i.companyId)?.name];
+  list.flatMap((i) => i.units.map((u) => {
+    const a = currentAssignmentOf(db, u);
+    return [i.name, u.tag, u.serial ?? u.licenseKey, unitStatus(db, i, u).name, a ? assigneeLabel(db, a) : '', companyName(i)];
   })));
 
 
-  const base = `/${kindPlural[kind].toLowerCase()}`;
+  const unitsPanel = (i: Item) =>
+  <table className="w-full text-left text-[13px]">
+      <thead>
+        <tr className="text-[11px] uppercase tracking-wide text-muted">
+          <th className="py-1 pr-4 font-semibold">Tag</th>
+          <th className="py-1 pr-4 font-semibold">{kind === 'license' ? 'License key' : 'Serial'}</th>
+          <th className="py-1 pr-4 font-semibold">Status</th>
+          <th className="py-1 font-semibold">Assigned to</th>
+        </tr>
+      </thead>
+      <tbody>
+        {i.units.map((u) => {
+        const s = unitStatus(db, i, u);
+        const a = currentAssignmentOf(db, u);
+        return (
+          <tr key={u.id} className="border-t border-line/70">
+              <td className="py-1.5 pr-4 font-medium">{u.tag}</td>
+              <td className="py-1.5 pr-4 font-mono text-[12px] text-muted">{(kind === 'license' ? u.licenseKey : u.serial) || '-'}</td>
+              <td className="py-1.5 pr-4"><StatusBadge tone={s.tone}>{s.name}</StatusBadge>{s.assigned && kind === 'asset' && <Badge className="ml-1.5 bg-sky-50 text-sky-700 ring-sky-200">Assigned</Badge>}</td>
+              <td className="py-1.5">{a ? assigneeLabel(db, a) : <span className="text-subtle">-</span>}</td>
+            </tr>);
+
+      })}
+      </tbody>
+    </table>;
+
+
   return (
     <>
       <PageHeader
-        title={kindPlural[kind]}
+        title={`${kindPlural[kind]} Management`}
+        icon={icons[kind]}
         subtitle={descriptions[kind]}
-        actions={
-        <>
-            <Button onClick={exportCsv} disabled={rows.length === 0}><DownloadIcon className="h-4 w-4" />Export CSV</Button>
-            <Button variant="primary" onClick={() => setCreating(true)}><PlusIcon className="h-4 w-4" />Add {kindLabel[kind].toLowerCase()}</Button>
-          </>
-        } />
+        actions={<Button variant="primary" onClick={() => setCreating(true)}><PlusIcon className="h-4 w-4" />Add {kindLabel[kind]}</Button>} />
       <PageBody>
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <SearchInput className="w-full sm:w-72" value={q} onChange={setQ} placeholder={`Search by name, tag or serial`} />
-          <Select className="w-full sm:w-52" aria-label="Filter by company" value={company} onChange={(e) => setCompany(e.target.value)}>
-            <option value="">All companies</option>
-            {db.companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-          <Select className="w-full sm:w-44" aria-label="Filter by category" value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">All categories</option>
-            {db.categories.filter((c) => !c.type || c.type === kind).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-          <Select className="w-full sm:w-44" aria-label="Filter by availability" value={availability} onChange={(e) => setAvailability(e.target.value)}>
-            <option value="">Any availability</option>
-            <option value="available">Has available</option>
-            <option value="none">None available</option>
-            <option value="low">Low stock</option>
-          </Select>
-          {(q || company || category || availability) &&
-          <Button variant="ghost" onClick={() => {setQ('');setCompany('');setCategory('');setAvailability('');}}>Clear filters</Button>
-          }
-          <span className="ml-auto text-[12px] text-muted">{rows.length} of {all.length}</span>
-        </div>
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(i) => i.id}
-          onRowClick={(i) => navigate(`${base}/${i.id}`)}
+          selectable
+          columnsMenu
+          expandable={{ render: unitsPanel }}
+          initialSort={{ key: 'updated', dir: 'desc' }}
+          toolbar={({ rows: shown, selected }) =>
+          <TableToolbar
+            search={q}
+            onSearch={setQ}
+            placeholder={`Search ${kindPlural[kind].toLowerCase()}...`}
+            onExport={() => exportExcel(shown)}
+            exportDisabled={shown.length === 0}
+            selectedCount={selected.length}
+            onDeleteSelected={() => setDeleting(selected)} />
+          }
           emptyTitle={all.length === 0 ? `No ${kindPlural[kind].toLowerCase()} yet` : 'No matches'}
-          emptyDescription={all.length === 0 ? `Add your first ${kindLabel[kind].toLowerCase()} to start tracking it.` : 'Try a different search or clear the filters.'}
-          emptyAction={all.length === 0 ? <Button variant="primary" onClick={() => setCreating(true)}>Add {kindLabel[kind].toLowerCase()}</Button> : undefined} />
+          emptyDescription={all.length === 0 ? `Add your first ${kindLabel[kind].toLowerCase()} to start tracking it.` : 'Try a different search.'}
+          emptyAction={all.length === 0 ? <Button variant="primary" onClick={() => setCreating(true)}>Add {kindLabel[kind]}</Button> : undefined} />
       </PageBody>
 
       <ItemFormDrawer kind={kind} open={creating} onClose={() => setCreating(false)} onSaved={(id) => navigate(`${base}/${id}`)} />
       {editing && <ItemFormDrawer kind={kind} item={editing} open onClose={() => setEditing(undefined)} />}
       {assigning && <AssignDrawer open item={assigning} onClose={() => setAssigning(undefined)} />}
       <Dialog
-        open={Boolean(deleting)}
+        open={deleting.length > 0}
         busy={busy}
-        title={`Delete ${deleting?.name}?`}
-        body="This permanently removes the record, all of its individual items, and their history. Records with active assignments cannot be deleted."
+        title={deleting.length === 1 ? `Delete ${deleting[0].name}?` : `Delete ${deleting.length} ${kindPlural[kind].toLowerCase()}?`}
+        body="This permanently removes the record, all of its individual items, and their history. Records with active assignments cannot be deleted and are skipped."
         confirmLabel="Delete"
         confirmVariant="danger"
-        onCancel={() => setDeleting(undefined)}
+        onCancel={() => setDeleting([])}
         onConfirm={async () => {
-          const target = deleting!;
-          await run((d) => deleteItem(d, target.id), `${target.name} deleted`);
-          setDeleting(undefined);
+          const ids = deleting.map((i) => i.id);
+          const r = await run((d) => {
+            const out = bulkRemove(d, ids, deleteItem);
+            return { db: out.db, result: out };
+          });
+          const out = r.result;
+          if (out) {
+            if (out.done === 0) notifyError(out.firstError ?? 'Nothing was deleted');
+            else if (out.failed > 0) notify(`${out.done} deleted, ${out.failed} skipped: ${out.firstError}`);
+            else notify(out.done === 1 ? 'Deleted' : `${out.done} deleted`);
+          }
+          setDeleting([]);
         }} />
     </>);
-
 }

@@ -4,8 +4,8 @@ export default {
     extend: {
       colors: {
         brand: {
-          50: '#FFF7ED', 100: '#FFEDD5', 200: '#FED7AA', 300: '#FDBA74',
-          400: '#FB923C', 500: '#F97316', 600: '#EA580C', 700: '#C2410C'
+          50: '#FFFBEB', 100: '#FEF3C7', 200: '#FDE68A', 300: '#FCD34D',
+          400: '#FBBF24', 500: '#F9B115', 600: '#D97706', 700: '#B45309'
         },
         ink: '#0F172A',
         muted: '#64748B',

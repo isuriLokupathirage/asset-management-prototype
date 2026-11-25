@@ -28,6 +28,7 @@ interface Store {
   toast: string | null;
   error: string | null;
   notify: (message: string) => void;
+  notifyError: (message: string) => void;
   clearToast: () => void;
   clearError: () => void;
 }
@@ -85,6 +86,7 @@ export function AppStoreProvider({ children }: {children: React.ReactNode;}) {
     toast,
     error,
     notify: setToast,
+    notifyError: setError,
     clearToast: () => setToast(null),
     clearError: () => setError(null)
   }), [db, busy, run, toast, error]);

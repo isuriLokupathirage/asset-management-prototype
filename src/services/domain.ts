@@ -571,3 +571,22 @@ export function deleteSetting(db: Db, c: Collection, id: string): Db {
   if (c === 'fieldSets') next = { ...next, customFields: next.customFields.map((f) => ({ ...f, fieldsetIds: f.fieldsetIds.filter((x) => x !== id) })) };
   return next;
 }
+
+/** Runs a removal for each id. Ones that are blocked by a business rule are skipped and counted. */
+export function bulkRemove(db: Db, ids: string[], remove: (d: Db, id: string) => Db): {db: Db;done: number;failed: number;firstError?: string;} {
+  let next = db;
+  let done = 0;
+  let failed = 0;
+  let firstError: string | undefined;
+  for (const id of ids) {
+    try {
+      next = remove(next, id);
+      done++;
+    } catch (e) {
+      if (!(e instanceof ServiceError)) throw e;
+      failed++;
+      firstError = firstError ?? e.message;
+    }
+  }
+  return { db: next, done, failed, firstError };
+}

@@ -277,7 +277,7 @@ export function ItemDetail({ kind }: {kind: Kind;}) {
       {statusUnit && <StatusDrawer open item={item} unit={statusUnit} onClose={() => setStatusUnit(undefined)} />}
       {unitForm && <UnitDrawer open item={item} unit={unitForm.unit} onClose={() => setUnitForm(null)} />}
       <DeleteUnitDialog open={Boolean(deleteUnit)} item={item} unit={deleteUnit} onClose={() => setDeleteUnit(undefined)} />
-      <HandoverDrawer open={Boolean(handover)} assignmentId={handover} onClose={() => setHandover(undefined)} />
+      <HandoverDrawer open={Boolean(handover)} assignmentIds={handover ? [handover] : []} onClose={() => setHandover(undefined)} />
       <Dialog
         open={deleting}
         busy={busy}

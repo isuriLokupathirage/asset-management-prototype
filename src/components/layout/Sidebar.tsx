@@ -63,7 +63,7 @@ export function Sidebar() {
     <aside className="flex h-full w-[268px] shrink-0 flex-col border-r border-line bg-white">
       <div className="px-5 pb-3 pt-5">
         <div className="flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">A</span>
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-ink">A</span>
           <div className="leading-tight">
             <p className="text-sm font-semibold text-ink">Accxis 360</p>
             <p className="text-[11px] text-muted">Workforce Management</p>

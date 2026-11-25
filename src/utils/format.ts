@@ -27,3 +27,15 @@ export function downloadCsv(filename: string, header: string[], rows: Array<Arra
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/** Downloads an .xls file (an HTML table that Excel opens directly). */
+export function downloadExcel(filename: string, header: string[], rows: Array<Array<string | number | undefined>>) {
+  const esc = (v: string | number | undefined) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = `<html><head><meta charset="utf-8"></head><body><table><thead><tr>${header.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;
+  const url = URL.createObjectURL(new Blob([html], { type: 'application/vnd.ms-excel' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

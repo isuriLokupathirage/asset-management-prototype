@@ -391,17 +391,17 @@ export function DeleteUnitDialog({ open, onClose, item, unit }: {open: boolean;o
 
 // ------------------------------------------------------------------ handover form
 
-export function HandoverDrawer({ open, onClose, assignmentId }: {open: boolean;onClose: () => void;assignmentId?: string;}) {
+export function HandoverDrawer({ open, onClose, assignmentIds }: {open: boolean;onClose: () => void;assignmentIds?: string[];}) {
   const { db } = useStore();
-  const a = db.assignments.find((x) => x.id === assignmentId);
-  const item = findItem(db, a?.itemId);
-  const unit = item?.units.find((u) => u.id === a?.unitId);
-  const company = db.companies.find((c) => c.id === item?.companyId);
-  const emp = db.employees.find((e) => e.id === a?.toEmployeeId);
-  const returned = Boolean(a?.returnedAt);
+  const list = (assignmentIds ?? []).map((id) => db.assignments.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => Boolean(x));
+  const first = list[0];
+  const firstItem = findItem(db, first?.itemId);
+  const company = db.companies.find((c) => c.id === firstItem?.companyId);
+  const emp = db.employees.find((e) => e.id === first?.toEmployeeId);
+  const returned = list.length > 0 && list.every((a) => a.returnedAt);
   const title = returned ? 'Asset Return Form' : 'Asset Handover Form';
 
-  if (!a || !item || !unit) return null;
+  if (!first || !firstItem) return null;
   return (
     <FormDrawer open={open} onClose={onClose} size="lg" title={title} subtitle="Preview, print or save as PDF from the print dialog" hideSubmit>
       <div className="mb-4 flex justify-end">
@@ -413,18 +413,18 @@ export function HandoverDrawer({ open, onClose, assignmentId }: {open: boolean;o
             <p className="text-lg font-semibold">{company?.name}</p>
             <p className="text-muted">{title}</p>
           </div>
-          <p className="text-right text-[12px] text-muted">Form date<br /><span className="font-medium text-ink">{formatDate(returned ? a.returnedAt : a.assignedAt)}</span></p>
+          <p className="text-right text-[12px] text-muted">Form date<br /><span className="font-medium text-ink">{formatDate(new Date().toISOString())}</span></p>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-wide text-subtle">{returned ? 'Returned by' : 'Issued to'}</p>
-            <p className="mt-1 font-medium">{emp?.name ?? assigneeLabel(db, a)}</p>
+            <p className="mt-1 font-medium">{emp?.name ?? assigneeLabel(db, first)}</p>
             {emp && <p className="text-muted">{emp.position} · {db.departments.find((d) => d.id === emp.departmentId)?.name}</p>}
             {emp && <p className="text-muted">{emp.email}</p>}
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-wide text-subtle">Issued by</p>
-            <p className="mt-1 font-medium">{employeeName(db, a.assignedBy)}</p>
+            <p className="mt-1 font-medium">{employeeName(db, first.assignedBy)}</p>
             <p className="text-muted">Asset Management</p>
           </div>
         </div>
@@ -435,22 +435,27 @@ export function HandoverDrawer({ open, onClose, assignmentId }: {open: boolean;o
               <th className="px-3 py-2">Item</th>
               <th className="px-3 py-2">Tag</th>
               <th className="px-3 py-2">Serial / key</th>
-              <th className="px-3 py-2">Condition</th>
+              <th className="px-3 py-2">Assigned</th>
+              <th className="px-3 py-2">Notes</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="border-t border-line">
-              <td className="px-3 py-2">{kindLabel[item.kind]}</td>
-              <td className="px-3 py-2">{item.name}</td>
-              <td className="px-3 py-2">{unit.tag}</td>
-              <td className="px-3 py-2">{unit.serial ?? unit.licenseKey ?? '-'}</td>
-              <td className="px-3 py-2">{returned ? a.condition : unit.condition ?? 'Good'}</td>
-            </tr>
+            {list.map((a) => {
+              const item = findItem(db, a.itemId);
+              const unit = item?.units.find((u) => u.id === a.unitId);
+              return (
+                <tr key={a.id} className="border-t border-line align-top">
+                  <td className="px-3 py-2">{item ? kindLabel[item.kind] : ''}</td>
+                  <td className="px-3 py-2">{item?.name}</td>
+                  <td className="px-3 py-2">{unit?.tag}</td>
+                  <td className="px-3 py-2">{unit?.serial ?? unit?.licenseKey ?? '-'}</td>
+                  <td className="px-3 py-2">{formatDate(a.assignedAt)}</td>
+                  <td className="px-3 py-2">{a.returnedAt ? a.returnNotes || a.condition : unit?.handoverNotes ?? a.notes ?? '-'}</td>
+                </tr>);
+
+            })}
           </tbody>
         </table>
-        {(returned ? a.returnNotes : unit.handoverNotes ?? a.notes) &&
-        <p className="mt-4"><span className="text-muted">Notes: </span>{returned ? a.returnNotes : unit.handoverNotes ?? a.notes}</p>
-        }
         <p className="mt-6 text-[12px] leading-relaxed text-muted">
           I confirm that I have {returned ? 'returned' : 'received'} the item(s) listed above in the stated condition. I will use company assets responsibly, in line with company policy, and report any loss or damage immediately.
         </p>
