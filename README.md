@@ -20,9 +20,9 @@ Based on the legacy source (`Accxis360.App/src/asset-management`, `Accxis360.Api
 | Area | Screens and behaviour |
 |---|---|
 | Dashboard | Totals and availability for the four inventory kinds, assets by status, new items by month, expiring EOL and licenses (7/30/90 days), low stock, open maintenance, recent activity |
-| Inventory: Assets, Licenses, Components, Accessories | List with search, filters, sort, pagination, CSV export. Create (with individual records, tag generation from the asset type pattern, custom fields), edit, delete with in-use guards. Detail page with Details, Individual records, Assignments, Assigned items (assets), Maintenance (assets) and History tabs |
+| Inventory: Assets, Licenses, Components, Accessories | List with search, filters, sort, pagination, CSV export. Create (with individual records, tag generation from the asset type pattern, custom fields), edit, delete with in-use guards. Detail page with Details, Individual records, Assignments, Assigned items (assets), Maintenance History (assets) and History tabs |
 | Assign / Return | Assign an individual record to a user or to another asset. Return with condition and notes. Printable handover and return form |
-| Asset status and maintenance | Status labels with types. Changing to *Under Maintenance* requires a repair agent and date and opens a maintenance record. Leaving it completes the record. Maintenance page to edit, complete or cancel |
+| Asset status and maintenance | Status labels with types. Changing to *Under Maintenance* requires a repair agent and date and opens a maintenance record. Leaving it completes the record. Records are edited, completed or cancelled on the asset's Maintenance History tab |
 | User assignments | People with holdings per kind, per-user current and returned items, "Assign item" from the user page, **My Assignments** |
 | Settings | Companies, Departments, Categories, Manufacturers, Suppliers and repair agents, Asset Models, Asset Types (tag patterns), Status Labels, Custom Fields, Field Sets |
 

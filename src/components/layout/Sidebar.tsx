@@ -17,7 +17,6 @@ import {
   TruckIcon,
   UserCheckIcon,
   UsersIcon,
-  WrenchIcon,
   BuildingIcon,
   TagsIcon } from
 'lucide-react';
@@ -41,8 +40,7 @@ export const navGroups: NavLeaf[][] = [
 { label: 'Assets', to: '/assets', icon: LaptopIcon },
 { label: 'Licenses', to: '/licenses', icon: KeyRoundIcon },
 { label: 'Components', to: '/components', icon: CpuIcon },
-{ label: 'Accessories', to: '/accessories', icon: MouseIcon },
-{ label: 'Maintenance', to: '/maintenance', icon: WrenchIcon }],
+{ label: 'Accessories', to: '/accessories', icon: MouseIcon }],
 
 [
 { label: 'Custom Fields', to: '/settings/custom-fields', icon: ListIcon },

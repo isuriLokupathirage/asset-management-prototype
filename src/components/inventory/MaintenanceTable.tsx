@@ -72,7 +72,7 @@ function EditMaintenance({ record, onClose }: {record?: Maintenance;onClose: () 
 }
 
 /** Maintenance records with edit / complete / cancel actions. Completing returns the asset to a Deployable status. */
-export function MaintenanceTable({ records, showAsset }: {records: Maintenance[];showAsset?: boolean;}) {
+export function MaintenanceTable({ records }: {records: Maintenance[];}) {
   const { db, run, busy } = useStore();
   const [editing, setEditing] = useState<Maintenance>();
   const [closing, setClosing] = useState<{record: Maintenance;mode: 'completed' | 'cancelled';}>();
@@ -98,7 +98,6 @@ export function MaintenanceTable({ records, showAsset }: {records: Maintenance[]
       return (
         <div>
             <Link to={`/assets/${m.itemId}`} className="font-medium text-ink hover:text-brand-600" onClick={(e) => e.stopPropagation()}>{unit?.tag}</Link>
-            {showAsset && <p className="text-[11px] text-muted">{item?.name}</p>}
           </div>);
 
     }

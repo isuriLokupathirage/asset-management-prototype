@@ -4,7 +4,6 @@ import { AppShell } from './components/layout/AppShell';
 import { Dashboard } from './pages/Dashboard';
 import { InventoryList } from './pages/inventory/InventoryList';
 import { UserAssignmentDetail, UserAssignments } from './pages/Assignments';
-import { MaintenancePage } from './pages/Maintenance';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { settingConfigs } from './pages/settings/settingsConfig';
 import { PageBody, PageHeader } from './components/layout/PageHeader';
@@ -26,7 +25,6 @@ export function App() {
             <Route path="assignments" element={<UserAssignments />} />
             <Route path="assignments/:userId" element={<UserAssignmentDetail />} />
             <Route path="my-assignments" element={<UserAssignmentDetail self />} />
-            <Route path="maintenance" element={<MaintenancePage />} />
             <Route path="settings" element={<Navigate to="/settings/companies" replace />} />
             {settingConfigs.map((c) =>
             <Route key={c.route} path={`settings/${c.route}`} element={<SettingsPage config={c} />} />

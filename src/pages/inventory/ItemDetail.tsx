@@ -48,7 +48,7 @@ export function ItemDetailModal({ kind, id, onClose }: {kind: Kind;id?: string;o
   { id: 'details', label: 'Details' },
   { id: 'units', label: kind === 'license' ? 'Seats' : 'Individual records', count: item.units.length },
   { id: 'assignments', label: 'Assignments', count: itemAssignments.length },
-  ...(kind === 'asset' ? [{ id: 'assigned', label: 'Assigned items', count: hosted.length }, { id: 'maintenance', label: 'Maintenance', count: maint.length }] : []),
+  ...(kind === 'asset' ? [{ id: 'assigned', label: 'Assigned items', count: hosted.length }, { id: 'maintenance', label: 'Maintenance History', count: maint.length }] : []),
   { id: 'history', label: 'History', count: events.length }];
 
 
